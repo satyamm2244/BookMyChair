@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 
+import { supabase } from './db/supabase';
+
 dotenv.config();
 
 const app = express();
@@ -17,6 +19,32 @@ app.get('/', (_req: Request, res: Response) => {
     success: true,
     message: 'BookMyChair API is running'
   });
+});
+
+app.get('/api/health/db', async (_req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('services')
+      .select('id, name, duration_minutes, price')
+      .limit(5);
+
+    if (error) {
+      throw error;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Database connected successfully',
+      data
+    });
+  } catch (error) {
+    console.error('Database health check failed:', error);
+
+    res.status(500).json({
+      success: false,
+      message: 'Database connection failed'
+    });
+  }
 });
 
 app.listen(PORT, () => {
