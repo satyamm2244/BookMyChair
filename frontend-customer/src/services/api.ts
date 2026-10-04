@@ -49,27 +49,111 @@ export interface BookingRequestParams {
   phone?: string;
 }
 
+export type TimePeriod = 'morning' | 'afternoon' | 'evening';
+
 /**
- * Extract target date (YYYY-MM-DD) from user text
+ * BUG 1 FIX: DYNAMIC RELATIVE DATE IN ASIA/KOLKATA
+ * Computes date (YYYY-MM-DD) dynamically in Asia/Kolkata timezone.
+ * offsetDays: 0 for today, 1 for tomorrow ("kal"), 2 for day after ("parso")
  */
-export function extractDateFromMessage(message: string): string {
+export function getDateInKolkata(offsetDays: number = 0): string {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+
+  const parts = formatter.formatToParts(now);
+  const year = parseInt(parts.find((p) => p.type === 'year')!.value, 10);
+  const month = parseInt(parts.find((p) => p.type === 'month')!.value, 10) - 1;
+  const day = parseInt(parts.find((p) => p.type === 'day')!.value, 10);
+
+  const targetDate = new Date(Date.UTC(year, month, day + offsetDays, 12, 0, 0));
+  return formatter.format(targetDate);
+}
+
+/**
+ * Resolves natural language date references to dynamic YYYY-MM-DD in Asia/Kolkata
+ */
+export function resolveTargetDate(message: string): string {
   const lower = message.toLowerCase();
-  const today = new Date();
 
   if (lower.includes('parso') || lower.includes('day after')) {
-    const d = new Date(today);
-    d.setDate(d.getDate() + 2);
-    return d.toISOString().split('T')[0];
+    return getDateInKolkata(2);
   }
 
   if (lower.includes('today') || lower.includes('aaj')) {
-    return today.toISOString().split('T')[0];
+    return getDateInKolkata(0);
   }
 
-  // "kal", "tomorrow", "shaam", or default: tomorrow
-  const d = new Date(today);
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
+  // "kal", "tomorrow", "shaam", or default: tomorrow in Asia/Kolkata
+  return getDateInKolkata(1);
+}
+
+// Backwards-compatible alias
+export const extractDateFromMessage = resolveTargetDate;
+
+/**
+ * BUG 2 FIX: CONVERT RAW ISO TIMESTAMP TO IST HOUR
+ * Uses Intl.DateTimeFormat with Asia/Kolkata and hourCycle: h23
+ * Example: '2026-10-05T10:30:00.000Z' -> 16 (4:00 PM IST)
+ */
+export function getISTHour(isoTimestamp: string): number {
+  const d = new Date(isoTimestamp);
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hourCycle: 'h23',
+    hour: 'numeric',
+  });
+  return parseInt(formatter.format(d), 10);
+}
+
+/**
+ * Filters slots by time period using machine-friendly ISO start timestamps:
+ * - morning:   10 <= hour < 12
+ * - afternoon: 12 <= hour < 16
+ * - evening:   16 <= hour < 19
+ */
+export function filterSlotsByPeriod(
+  slots: AvailableSlot[],
+  period: TimePeriod
+): AvailableSlot[] {
+  return slots.filter((slot) => {
+    const hour = getISTHour(slot.start);
+    switch (period) {
+      case 'morning':
+        return hour >= 10 && hour < 12;
+      case 'afternoon':
+        return hour >= 12 && hour < 16;
+      case 'evening':
+        return hour >= 16 && hour < 19;
+      default:
+        return true;
+    }
+  });
+}
+
+/**
+ * Detects time period from user natural language
+ */
+export function detectTimePeriod(message: string): TimePeriod | null {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes('shaam') ||
+    lower.includes('evening') ||
+    lower.includes('night')
+  ) {
+    return 'evening';
+  }
+  if (lower.includes('subah') || lower.includes('morning')) {
+    return 'morning';
+  }
+  if (lower.includes('dopahar') || lower.includes('afternoon')) {
+    return 'afternoon';
+  }
+  return null;
 }
 
 /**
@@ -167,7 +251,6 @@ export async function getAvailability(
     res = await fetch(url.toString());
   } catch (netErr) {
     console.warn('Backend unavailable during getAvailability:', netErr);
-    // If backend is offline, throw BackendOfflineError so UI handles gracefully
     throw new BackendOfflineError(
       'Booking service is temporarily unavailable. Please try again.'
     );
@@ -198,7 +281,7 @@ export async function getAvailability(
 }
 
 /**
- * Create REAL booking in Supabase via Satyam's backend
+ * Create REAL booking in Supabase via backend
  * POST /api/bookings
  */
 export async function createBooking(
@@ -265,6 +348,9 @@ export async function createBooking(
 
 /**
  * Natural language chat handler that connects intent to REAL availability slots
+ * - Resolves dynamic date in Asia/Kolkata
+ * - Filters slots by machine-friendly start ISO timestamp
+ * - Selects 2-3 valid evening slots
  */
 export async function sendChatMessage(
   message: string,
@@ -317,7 +403,6 @@ export async function sendChatMessage(
     !lower.includes('appointment') &&
     !lower.includes('book')
   ) {
-    // Clarification when intent is not recognized
     return {
       type: 'clarification',
       message:
@@ -325,7 +410,7 @@ export async function sendChatMessage(
     };
   }
 
-  // Determine stylist filter if customer specifically mentioned one
+  // Stylist filter if customer requested
   let stylistId: string | undefined = undefined;
   if (lower.includes('rohit')) {
     stylistId = STYLIST_IDS.rohit;
@@ -333,12 +418,13 @@ export async function sendChatMessage(
     stylistId = STYLIST_IDS.aman;
   }
 
-  const selectedDate = extractDateFromMessage(message);
+  // BUG 1: Dynamic relative date in Asia/Kolkata
+  const selectedDate = resolveTargetDate(message);
 
   // Call REAL backend availability engine
-  const slots = await getAvailability(serviceId, selectedDate, stylistId);
+  const allSlots = await getAvailability(serviceId, selectedDate, stylistId);
 
-  if (!slots || slots.length === 0) {
+  if (!allSlots || allSlots.length === 0) {
     return {
       type: 'clarification',
       message: `No available slots were found for ${serviceName} on ${formatToDateString(
@@ -347,10 +433,37 @@ export async function sendChatMessage(
     };
   }
 
+  // BUG 2: Filter by time period using ISO start timestamp
+  const period = detectTimePeriod(message);
+  let finalSlots = allSlots;
+
+  if (period) {
+    const periodSlots = filterSlotsByPeriod(allSlots, period);
+    if (periodSlots.length > 0) {
+      // Show 2-3 valid evening slots returned by the REAL backend
+      finalSlots = periodSlots.slice(0, 3);
+    } else {
+      const periodLabel = period === 'evening' ? 'evening (4:00 PM – 7:00 PM)' : period;
+      return {
+        type: 'clarification',
+        message: `No available slots were found in the ${periodLabel} for ${serviceName} on ${formatToDateString(
+          selectedDate
+        )}. Would you like to check earlier slots?`,
+      };
+    }
+  } else {
+    // If no specific period requested, show up to 4 convenient slots
+    finalSlots = allSlots.slice(0, 4);
+  }
+
+  const messageText = period === 'evening'
+    ? `I found these available evening slots for ${serviceName}:`
+    : `I found these available slots for ${serviceName}:`;
+
   return {
     type: 'slots',
-    message: `I found these available slots for ${serviceName}:`,
-    slots,
+    message: messageText,
+    slots: finalSlots,
     serviceId,
     serviceName,
     selectedDate,
