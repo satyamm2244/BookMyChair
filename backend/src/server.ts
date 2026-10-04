@@ -15,9 +15,15 @@ import {
   getActivityLogs
 } from './services/dashboard.service';
 import {
+  getReminderCandidates,
+  getTomorrowSummary,
+  getRebookingCandidates
+} from './services/automation.service';
+import {
   bookingRequestSchema,
   chatRequestSchema,
-  patchApprovalSchema
+  patchApprovalSchema,
+  reminderQuerySchema
 } from './schemas';
 
 dotenv.config();
@@ -369,6 +375,79 @@ app.get('/api/activity', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to retrieve activity log'
+    });
+  }
+});
+
+// ----------------------------------------------------
+// Automation Support Endpoints (for n8n)
+// ----------------------------------------------------
+
+app.get('/api/automation/reminders', async (req: Request, res: Response) => {
+  try {
+    const parseResult = reminderQuerySchema.safeParse(req.query);
+
+    if (!parseResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid window parameter. Allowed values: day_before, two_hours',
+        errors: parseResult.error.issues.map((issue) => ({
+          field: issue.path.join('.'),
+          message: issue.message
+        }))
+      });
+    }
+
+    const candidates = await getReminderCandidates(parseResult.data.window);
+
+    return res.status(200).json({
+      success: true,
+      count: candidates.length,
+      data: candidates
+    });
+  } catch (error) {
+    console.error('Get reminder candidates error:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve reminder candidates'
+    });
+  }
+});
+
+app.get('/api/automation/tomorrow-summary', async (_req: Request, res: Response) => {
+  try {
+    const summary = await getTomorrowSummary();
+
+    return res.status(200).json({
+      success: true,
+      data: summary
+    });
+  } catch (error) {
+    console.error('Get tomorrow summary error:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to generate tomorrow summary'
+    });
+  }
+});
+
+app.get('/api/automation/rebooking-candidates', async (_req: Request, res: Response) => {
+  try {
+    const candidates = await getRebookingCandidates();
+
+    return res.status(200).json({
+      success: true,
+      count: candidates.length,
+      data: candidates
+    });
+  } catch (error) {
+    console.error('Get rebooking candidates error:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve rebooking candidates'
     });
   }
 });
