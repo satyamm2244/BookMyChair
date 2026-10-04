@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { supabase } from './db/supabase';
 import { getAvailableSlots } from './services/availability.service';
 import { createBooking } from './services/booking.service';
+import { bookingRequestSchema } from './schemas';
 
 dotenv.config();
 
@@ -85,37 +86,20 @@ app.get('/api/test/availability', async (req: Request, res: Response) => {
 
 app.post('/api/bookings', async (req: Request, res: Response) => {
   try {
-    const {
-      customerName,
-      phone,
-      serviceId,
-      stylistId,
-      start,
-      end
-    } = req.body;
+    const parseResult = bookingRequestSchema.safeParse(req.body);
 
-    if (
-      !customerName ||
-      !phone ||
-      !serviceId ||
-      !stylistId ||
-      !start ||
-      !end
-    ) {
+    if (!parseResult.success) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required booking fields'
+        message: 'Validation failed',
+        errors: parseResult.error.issues.map((issue) => ({
+          field: issue.path.join('.'),
+          message: issue.message
+        }))
       });
     }
 
-    const booking = await createBooking({
-      customerName,
-      phone,
-      serviceId,
-      stylistId,
-      start,
-      end
-    });
+    const booking = await createBooking(parseResult.data);
 
     return res.status(201).json({
       success: true,

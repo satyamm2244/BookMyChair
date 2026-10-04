@@ -1,15 +1,7 @@
 import { supabase } from '../db/supabase';
+import { BookingRequestInput } from '../schemas/booking.schema';
 
-type CreateBookingInput = {
-  customerName: string;
-  phone: string;
-  serviceId: string;
-  stylistId: string;
-  start: string;
-  end: string;
-};
-
-export async function createBooking(input: CreateBookingInput) {
+export async function createBooking(input: BookingRequestInput) {
   const {
     customerName,
     phone,
