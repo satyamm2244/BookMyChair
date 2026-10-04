@@ -6,7 +6,15 @@ import { QuickPrompts } from './components/QuickPrompts';
 import { TypingIndicator } from './components/TypingIndicator';
 import { ErrorMessage } from './components/ErrorMessage';
 import type { ChatMessage as ChatMessageType, AvailableSlot } from './types';
-import { sendChatMessage, confirmSlotBooking } from './services/api';
+import {
+  sendChatMessage,
+  confirmSlotBooking,
+  getAvailability,
+  extractDateFromMessage,
+  BookingConflictError,
+  BackendOfflineError,
+} from './services/api';
+import { SERVICE_IDS, DEMO_CUSTOMER } from './constants/services';
 
 function formatCurrentTime(): string {
   const now = new Date();
@@ -73,40 +81,50 @@ export const App: React.FC = () => {
         assistantMsg.slots = response.slots;
         assistantMsg.serviceId = response.serviceId;
         assistantMsg.serviceName = response.serviceName;
+        assistantMsg.selectedDate = response.selectedDate;
       } else if (response.type === 'confirmed') {
         assistantMsg.booking = response.booking;
       }
 
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err: unknown) {
-      console.error(err);
-      setErrorMessage('Something went wrong while connecting. Please try again.');
+      console.error('Chat error:', err);
+      if (err instanceof BackendOfflineError) {
+        setErrorMessage('Booking service is temporarily unavailable. Please try again.');
+      } else {
+        const errorText =
+          err instanceof Error
+            ? err.message
+            : 'Booking service is temporarily unavailable. Please try again.';
+        setErrorMessage(errorText);
+      }
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Handle user tapping an available slot
+  // Handle customer selecting a real availability slot
   const handleSelectSlot = async (slot: AvailableSlot, parentMessageId: string) => {
     if (isProcessing) return;
 
     setErrorMessage(null);
 
-    // Find service details from the message that presented the slots
     const sourceMessage = messages.find((m) => m.id === parentMessageId);
-    const serviceId = sourceMessage?.serviceId || 'srv-haircut-01';
+    const serviceId = sourceMessage?.serviceId || SERVICE_IDS.haircut;
     const serviceName = sourceMessage?.serviceName || 'Haircut';
+    const selectedDate = sourceMessage?.selectedDate || extractDateFromMessage('');
 
-    // Mark slot as selected in the original message to avoid re-tapping
+    // Mark slot as temporarily selected in parent message
     setMessages((prev) =>
       prev.map((m) =>
         m.id === parentMessageId ? { ...m, isSlotSelected: true } : m
       )
     );
 
-    // Add user selection bubble
+    // Display user selection bubble
+    const userSelectMsgId = `user-slot-${Date.now()}`;
     const userSelectMsg: ChatMessageType = {
-      id: `user-slot-${Date.now()}`,
+      id: userSelectMsgId,
       sender: 'user',
       text: `Book ${slot.startIST} with ${slot.stylistName}`,
       timestamp: formatCurrentTime(),
@@ -116,12 +134,13 @@ export const App: React.FC = () => {
     setIsProcessing(true);
 
     try {
+      // Call REAL POST /api/bookings via api service
       const bookingResult = await confirmSlotBooking({
         slot,
         serviceId,
         serviceName,
-        customerName: 'Arghyarupa Mishra',
-        phone: '9876543210',
+        customerName: DEMO_CUSTOMER.name,
+        phone: DEMO_CUSTOMER.phone,
       });
 
       const confirmMsg: ChatMessageType = {
@@ -135,11 +154,58 @@ export const App: React.FC = () => {
 
       setMessages((prev) => [...prev, confirmMsg]);
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : 'That slot was just taken. Please choose another available slot.';
-      setErrorMessage(msg);
+      console.error('Booking confirmation error:', err);
+
+      if (
+        err instanceof BookingConflictError ||
+        (err instanceof Error && err.message.toLowerCase().includes('taken'))
+      ) {
+        // Step 7: Handle 409 conflict & refresh available slots
+        setErrorMessage('That slot was just taken. Please choose another available slot.');
+
+        // Remove the user's booking bubble since booking was not accepted
+        setMessages((prev) => prev.filter((m) => m.id !== userSelectMsgId));
+
+        // Re-fetch fresh availability from backend so the unavailable slot disappears
+        try {
+          const freshSlots = await getAvailability(serviceId, selectedDate);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === parentMessageId
+                ? { ...m, slots: freshSlots, isSlotSelected: false }
+                : m
+            )
+          );
+        } catch (refreshErr) {
+          console.error('Could not refresh availability after conflict:', refreshErr);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === parentMessageId ? { ...m, isSlotSelected: false } : m
+            )
+          );
+        }
+      } else if (err instanceof BackendOfflineError) {
+        // Step 8: Backend offline handling without crashing
+        setErrorMessage('Booking service is temporarily unavailable. Please try again.');
+        setMessages((prev) => prev.filter((m) => m.id !== userSelectMsgId));
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === parentMessageId ? { ...m, isSlotSelected: false } : m
+          )
+        );
+      } else {
+        const errorText =
+          err instanceof Error
+            ? err.message
+            : 'Booking service is temporarily unavailable. Please try again.';
+        setErrorMessage(errorText);
+        setMessages((prev) => prev.filter((m) => m.id !== userSelectMsgId));
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === parentMessageId ? { ...m, isSlotSelected: false } : m
+          )
+        );
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -151,7 +217,7 @@ export const App: React.FC = () => {
         {/* Header */}
         <ChatHeader />
 
-        {/* Error Alert Banner if any */}
+        {/* Error Alert Banner */}
         {errorMessage && (
           <ErrorMessage
             message={errorMessage}
@@ -159,7 +225,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* Chat Messages Scrollable Feed */}
+        {/* Chat Messages Feed */}
         <main className="chat-body" role="log" aria-live="polite">
           {messages.map((msg) => (
             <ChatMessage
@@ -175,7 +241,7 @@ export const App: React.FC = () => {
           <div ref={messagesEndRef} />
         </main>
 
-        {/* Footer Area: Quick Prompts + Message Input */}
+        {/* Footer: Quick Prompts & Message Input */}
         <footer className="chat-footer">
           <QuickPrompts
             onSelectPrompt={handleSendMessage}

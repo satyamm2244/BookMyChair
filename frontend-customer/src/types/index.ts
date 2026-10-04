@@ -26,6 +26,7 @@ export interface CreateBookingPayload {
   end: string;
   serviceName?: string;
   stylistName?: string;
+  startIST?: string;
 }
 
 export interface BookingResult {
@@ -67,6 +68,7 @@ export type ChatResponse =
       slots: AvailableSlot[];
       serviceId: string;
       serviceName?: string;
+      selectedDate?: string;
     }
   | {
       type: 'confirmed';
@@ -92,5 +94,6 @@ export interface ChatMessage {
   booking?: Booking;
   serviceId?: string;
   serviceName?: string;
+  selectedDate?: string;
   isSlotSelected?: boolean;
 }

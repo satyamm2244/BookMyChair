@@ -1,38 +1,43 @@
 import type {
   AvailableSlot,
-  Booking,
   ChatResponse,
   CreateBookingPayload,
   BookingResult,
   HealthCheckResult,
 } from '../types';
 import {
-  getMockChatResponse,
-  createMockBooking,
-  MOCK_HAIRCUT_SLOTS,
-  MOCK_FACIAL_SLOTS,
-} from '../data/mockResponses';
+  SERVICE_IDS,
+  STYLIST_IDS,
+  DEMO_CUSTOMER,
+} from '../constants/services';
 
-// Environment variable support with default localhost:5000 fallback
+// Base backend URL from Vite environment with default http://localhost:5000
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-// Chat endpoint /api/chat is still in progress by Satyam
-// Mock chat remains active until VITE_USE_CHAT_API=true
-const USE_CHAT_API = import.meta.env.VITE_USE_CHAT_API === 'true';
-
-// Fallback to mock booking response if backend is offline during demo/development
-const FALLBACK_TO_MOCK_ON_ERROR = true;
-
 /**
- * Dedicated error class for HTTP 409 Slot Booking Conflict
+ * Custom Error for HTTP 409 Booking Conflict (Double booking prevention)
  */
 export class BookingConflictError extends Error {
   statusCode: number = 409;
 
-  constructor(message: string = 'That slot is no longer available') {
+  constructor(
+    message: string = 'That slot was just taken. Please choose another available slot.'
+  ) {
     super(message);
     this.name = 'BookingConflictError';
+  }
+}
+
+/**
+ * Custom Error when backend service is down or unreachable
+ */
+export class BackendOfflineError extends Error {
+  constructor(
+    message: string = 'Booking service is temporarily unavailable. Please try again.'
+  ) {
+    super(message);
+    this.name = 'BackendOfflineError';
   }
 }
 
@@ -44,14 +49,39 @@ export interface BookingRequestParams {
   phone?: string;
 }
 
-// Helpers for date and IST time display
-function formatToTimeIST(timeStr: string): string {
+/**
+ * Extract target date (YYYY-MM-DD) from user text
+ */
+export function extractDateFromMessage(message: string): string {
+  const lower = message.toLowerCase();
+  const today = new Date();
+
+  if (lower.includes('parso') || lower.includes('day after')) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + 2);
+    return d.toISOString().split('T')[0];
+  }
+
+  if (lower.includes('today') || lower.includes('aaj')) {
+    return today.toISOString().split('T')[0];
+  }
+
+  // "kal", "tomorrow", "shaam", or default: tomorrow
+  const d = new Date(today);
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().split('T')[0];
+}
+
+/**
+ * Formats a raw timestamp/string to clean IST time display
+ */
+function formatToTimeIST(timeStr?: string): string {
   if (!timeStr) return '';
   if (
-    timeStr.includes('AM') ||
-    timeStr.includes('PM') ||
     timeStr.includes('am') ||
-    timeStr.includes('pm')
+    timeStr.includes('pm') ||
+    timeStr.includes('AM') ||
+    timeStr.includes('PM')
   ) {
     return timeStr;
   }
@@ -69,14 +99,14 @@ function formatToTimeIST(timeStr: string): string {
   }
 }
 
-function formatToDateString(dateStr: string): string {
-  if (!dateStr) return '6 October 2026';
+function formatToDateString(dateStr?: string): string {
+  if (!dateStr) return '06 Oct 2026';
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'long',
+      day: '2-digit',
+      month: 'short',
       year: 'numeric',
       timeZone: 'Asia/Kolkata',
     });
@@ -86,7 +116,7 @@ function formatToDateString(dateStr: string): string {
 }
 
 /**
- * Check backend database and service health
+ * Check backend database health
  * GET /api/health/db
  */
 export async function checkHealth(): Promise<HealthCheckResult> {
@@ -98,7 +128,7 @@ export async function checkHealth(): Promise<HealthCheckResult> {
       return {
         ok: false,
         status: 'error',
-        message: data.message || `Health check failed with status ${res.status}`,
+        message: data.message || `Health check failed (${res.status})`,
       };
     }
 
@@ -111,13 +141,13 @@ export async function checkHealth(): Promise<HealthCheckResult> {
     return {
       ok: false,
       status: 'unreachable',
-      message: err instanceof Error ? err.message : 'Backend server unreachable',
+      message: 'Booking service is temporarily unavailable. Please try again.',
     };
   }
 }
 
 /**
- * Fetch available slots from backend availability engine
+ * Fetch REAL slots from backend availability engine
  * GET /api/test/availability?serviceId=...&date=...&stylistId=...
  */
 export async function getAvailability(
@@ -125,156 +155,206 @@ export async function getAvailability(
   date: string,
   stylistId?: string
 ): Promise<AvailableSlot[]> {
-  try {
-    const url = new URL(`${API_BASE_URL}/api/test/availability`);
-    url.searchParams.set('serviceId', serviceId);
-    url.searchParams.set('date', date);
-    if (stylistId) {
-      url.searchParams.set('stylistId', stylistId);
-    }
-
-    const res = await fetch(url.toString());
-    if (!res.ok) {
-      throw new Error(`Availability fetch error (${res.status})`);
-    }
-
-    const data = await res.json();
-    if (Array.isArray(data)) {
-      return data;
-    }
-    if (data.slots && Array.isArray(data.slots)) {
-      return data.slots;
-    }
-    return [];
-  } catch (err) {
-    console.warn('Backend availability fetch failed or offline, falling back to mock:', err);
-    if (serviceId.toLowerCase().includes('facial')) {
-      return MOCK_FACIAL_SLOTS;
-    }
-    return MOCK_HAIRCUT_SLOTS;
+  const url = new URL(`${API_BASE_URL}/api/test/availability`);
+  url.searchParams.set('serviceId', serviceId);
+  url.searchParams.set('date', date);
+  if (stylistId) {
+    url.searchParams.set('stylistId', stylistId);
   }
+
+  let res: Response;
+  try {
+    res = await fetch(url.toString());
+  } catch (netErr) {
+    console.warn('Backend unavailable during getAvailability:', netErr);
+    // If backend is offline, throw BackendOfflineError so UI handles gracefully
+    throw new BackendOfflineError(
+      'Booking service is temporarily unavailable. Please try again.'
+    );
+  }
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(
+      errorData.message || `Failed to fetch availability (${res.status})`
+    );
+  }
+
+  const data = await res.json();
+  const rawSlots: any[] = Array.isArray(data)
+    ? data
+    : Array.isArray(data.slots)
+    ? data.slots
+    : [];
+
+  return rawSlots.map((slot) => ({
+    stylistId: slot.stylistId,
+    stylistName: slot.stylistName || (slot.stylistId === STYLIST_IDS.aman ? 'Aman' : 'Rohit'),
+    start: slot.start,
+    end: slot.end,
+    startIST: slot.startIST || formatToTimeIST(slot.start),
+    endIST: slot.endIST || formatToTimeIST(slot.end),
+  }));
 }
 
 /**
- * Create confirmed booking with double-booking & 409 conflict handling
+ * Create REAL booking in Supabase via Satyam's backend
  * POST /api/bookings
  */
 export async function createBooking(
   payload: CreateBookingPayload
 ): Promise<BookingResult> {
+  const url = `${API_BASE_URL}/api/bookings`;
+
+  let res: Response;
   try {
-    const res = await fetch(`${API_BASE_URL}/api/bookings`, {
+    res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        customerName: payload.customerName,
-        phone: payload.phone,
+        customerName: payload.customerName || DEMO_CUSTOMER.name,
+        phone: payload.phone || DEMO_CUSTOMER.phone,
         serviceId: payload.serviceId,
         stylistId: payload.stylistId,
         start: payload.start,
         end: payload.end,
       }),
     });
-
-    const data = await res.json().catch(() => ({}));
-
-    // Explicitly handle 409 Conflict (double-booking protection)
-    if (res.status === 409 || data.success === false) {
-      const conflictMsg =
-        data.message || 'That slot is no longer available. Please choose another available slot.';
-      throw new BookingConflictError(conflictMsg);
-    }
-
-    if (!res.ok) {
-      throw new Error(data.message || `Booking failed with status ${res.status}`);
-    }
-
-    const bookingData = data.booking || data;
-    const formattedBooking: Booking = {
-      id: bookingData.id || `BK-${Math.floor(1000 + Math.random() * 9000)}`,
-      service: bookingData.service || payload.serviceName || 'Haircut',
-      date: bookingData.date || formatToDateString(payload.start),
-      time: bookingData.time || formatToTimeIST(payload.start),
-      stylist: bookingData.stylist || payload.stylistName || 'Aman',
-      customerName: bookingData.customerName || payload.customerName,
-      status: bookingData.status || 'confirmed',
-    };
-
-    return {
-      success: true,
-      message: data.message || 'Booking confirmed',
-      booking: formattedBooking,
-    };
-  } catch (err) {
-    if (err instanceof BookingConflictError) {
-      throw err;
-    }
-
-    // If backend is offline during local testing/demo, gracefully provide mock confirmation
-    if (FALLBACK_TO_MOCK_ON_ERROR) {
-      console.warn('Backend unavailable, using mock confirmation fallback:', err);
-      const mockSlot: AvailableSlot = {
-        stylistId: payload.stylistId,
-        stylistName: payload.stylistName || 'Aman',
-        start: payload.start,
-        end: payload.end,
-        startIST: formatToTimeIST(payload.start),
-        endIST: formatToTimeIST(payload.end),
-      };
-      const booking = createMockBooking(
-        mockSlot,
-        payload.serviceName || 'Haircut',
-        payload.customerName
-      );
-      return {
-        success: true,
-        message: 'Your booking is confirmed',
-        booking,
-      };
-    }
-
-    throw err;
+  } catch (netErr) {
+    console.error('Backend offline during createBooking:', netErr);
+    throw new BackendOfflineError(
+      'Booking service is temporarily unavailable. Please try again.'
+    );
   }
+
+  // Handle 409 Conflict (slot already booked / double-booking protection)
+  if (res.status === 409) {
+    const data = await res.json().catch(() => ({}));
+    throw new BookingConflictError(
+      data.message || 'That slot was just taken. Please choose another available slot.'
+    );
+  }
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok || data.success === false) {
+    throw new Error(data.message || `Booking failed with status ${res.status}`);
+  }
+
+  const booking = data.booking || data;
+
+  return {
+    success: true,
+    message: data.message || 'Booking Confirmed',
+    booking: {
+      id: booking.id || `BK-${Math.floor(1000 + Math.random() * 9000)}`,
+      service: booking.service || payload.serviceName || 'Haircut',
+      date: booking.date || formatToDateString(payload.start),
+      time: booking.time || formatToTimeIST(payload.startIST || payload.start),
+      stylist:
+        booking.stylist ||
+        payload.stylistName ||
+        (payload.stylistId === STYLIST_IDS.aman ? 'Aman' : 'Rohit'),
+      customerName: booking.customerName || payload.customerName || DEMO_CUSTOMER.name,
+      status: 'confirmed',
+    },
+  };
 }
 
 /**
- * Send natural-language customer message to chat assistant
- * (Mocks responses until /api/chat is deployed)
+ * Natural language chat handler that connects intent to REAL availability slots
  */
 export async function sendChatMessage(
   message: string,
-  customerId: string | null = null
+  _customerId: string | null = null
 ): Promise<ChatResponse> {
-  if (!USE_CHAT_API) {
-    // Natural typing delay simulation
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return getMockChatResponse(message);
-  }
+  const lower = message.trim().toLowerCase();
 
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ message, customerId }),
-    });
+  // Natural delay for assistant typing response
+  await new Promise((resolve) => setTimeout(resolve, 500));
 
-    if (!res.ok) {
-      throw new Error(`Chat API error (${res.status})`);
-    }
-
-    const data: ChatResponse = await res.json();
-    return data;
-  } catch (err) {
-    console.error('sendChatMessage error:', err);
+  // Owner approval requests
+  if (
+    lower.includes('discount') ||
+    lower.includes('free') ||
+    lower.includes('midnight') ||
+    lower.includes('doorstep') ||
+    lower.includes('home service')
+  ) {
     return {
-      type: 'error',
-      message: 'Unable to reach the booking assistant right now. Please try again in a moment.',
+      type: 'approval_required',
+      message:
+        'This request requires salon owner approval. We have forwarded your request to the owner.',
     };
   }
+
+  // Determine service ID
+  let serviceId: string = SERVICE_IDS.haircut;
+  let serviceName: string = 'Haircut';
+
+  if (lower.includes('facial') || lower.includes('face')) {
+    serviceId = SERVICE_IDS.facial;
+    serviceName = 'Facial';
+  } else if (lower.includes('spa')) {
+    serviceId = SERVICE_IDS.hairSpa;
+    serviceName = 'Hair Spa';
+  } else if (lower.includes('beard') || lower.includes('trim')) {
+    serviceId = SERVICE_IDS.beardTrim;
+    serviceName = 'Beard Trim';
+  } else if (
+    !lower.includes('haircut') &&
+    !lower.includes('hair') &&
+    !lower.includes('kal') &&
+    !lower.includes('shaam') &&
+    !lower.includes('tomorrow') &&
+    !lower.includes('evening') &&
+    !lower.includes('rohit') &&
+    !lower.includes('aman') &&
+    !lower.includes('availability') &&
+    !lower.includes('slot') &&
+    !lower.includes('appointment') &&
+    !lower.includes('book')
+  ) {
+    // Clarification when intent is not recognized
+    return {
+      type: 'clarification',
+      message:
+        'Which service would you like to book? For example: "haircut kal shaam ko", "facial tomorrow", or "hair spa".',
+    };
+  }
+
+  // Determine stylist filter if customer specifically mentioned one
+  let stylistId: string | undefined = undefined;
+  if (lower.includes('rohit')) {
+    stylistId = STYLIST_IDS.rohit;
+  } else if (lower.includes('aman')) {
+    stylistId = STYLIST_IDS.aman;
+  }
+
+  const selectedDate = extractDateFromMessage(message);
+
+  // Call REAL backend availability engine
+  const slots = await getAvailability(serviceId, selectedDate, stylistId);
+
+  if (!slots || slots.length === 0) {
+    return {
+      type: 'clarification',
+      message: `No available slots were found for ${serviceName} on ${formatToDateString(
+        selectedDate
+      )}. Would you like to check another day?`,
+    };
+  }
+
+  return {
+    type: 'slots',
+    message: `I found these available slots for ${serviceName}:`,
+    slots,
+    serviceId,
+    serviceName,
+    selectedDate,
+  };
 }
 
 /**
@@ -287,8 +367,8 @@ export async function confirmSlotBooking(
     slot,
     serviceId,
     serviceName = 'Haircut',
-    customerName = 'Arghyarupa Mishra',
-    phone = '9876543210',
+    customerName = DEMO_CUSTOMER.name,
+    phone = DEMO_CUSTOMER.phone,
   } = params;
 
   return createBooking({
@@ -300,5 +380,6 @@ export async function confirmSlotBooking(
     end: slot.end,
     serviceName,
     stylistName: slot.stylistName,
+    startIST: slot.startIST,
   });
 }
