@@ -44,56 +44,53 @@ export interface HealthCheckResult {
   [key: string]: unknown;
 }
 
-export interface AvailabilityResponse {
-  success: boolean;
+// Structured Backend Chat Response Types (POST /api/chat)
+export interface SlotsResponse {
+  type: 'slots';
+  message: string;
+  serviceId: string;
+  service: string;
+  date: string;
   slots: AvailableSlot[];
-  message?: string;
 }
 
-export type ChatResponseType =
-  | 'clarification'
-  | 'slots'
-  | 'confirmed'
-  | 'approval_required'
-  | 'error';
+export interface ClarificationResponse {
+  type: 'clarification';
+  message: string;
+}
+
+export interface NoAvailabilityResponse {
+  type: 'no_availability';
+  message: string;
+}
+
+export interface ApprovalRequiredResponse {
+  type: 'approval_required';
+  message: string;
+}
+
+export interface ErrorResponse {
+  type: 'error';
+  message: string;
+}
 
 export type ChatResponse =
-  | {
-      type: 'clarification';
-      message: string;
-    }
-  | {
-      type: 'slots';
-      message: string;
-      slots: AvailableSlot[];
-      serviceId: string;
-      serviceName?: string;
-      selectedDate?: string;
-    }
-  | {
-      type: 'confirmed';
-      message: string;
-      booking: Booking;
-    }
-  | {
-      type: 'approval_required';
-      message: string;
-    }
-  | {
-      type: 'error';
-      message: string;
-    };
+  | SlotsResponse
+  | ClarificationResponse
+  | NoAvailabilityResponse
+  | ApprovalRequiredResponse
+  | ErrorResponse;
 
 export interface ChatMessage {
   id: string;
   sender: 'user' | 'assistant';
   text?: string;
   timestamp: string;
-  responseType?: ChatResponseType | 'initial';
+  responseType?: ChatResponse['type'] | 'initial' | 'confirmed';
   slots?: AvailableSlot[];
   booking?: Booking;
   serviceId?: string;
-  serviceName?: string;
-  selectedDate?: string;
+  service?: string;
+  date?: string;
   isSlotSelected?: boolean;
 }
