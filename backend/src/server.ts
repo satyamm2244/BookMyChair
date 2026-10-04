@@ -6,7 +6,8 @@ import dotenv from 'dotenv';
 import { supabase } from './db/supabase';
 import { getAvailableSlots } from './services/availability.service';
 import { createBooking } from './services/booking.service';
-import { bookingRequestSchema } from './schemas';
+import { parseCustomerMessage } from './services/ai.service';
+import { bookingRequestSchema, chatRequestSchema } from './schemas';
 
 dotenv.config();
 
@@ -122,6 +123,34 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to create booking'
+    });
+  }
+});
+
+app.post('/api/test/parse-message', async (req: Request, res: Response) => {
+  try {
+    const parseResult = chatRequestSchema.safeParse(req.body);
+
+    if (!parseResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid message request',
+        errors: parseResult.error.issues.map((issue) => ({
+          field: issue.path.join('.'),
+          message: issue.message
+        }))
+      });
+    }
+
+    const structuredIntent = await parseCustomerMessage(parseResult.data.message);
+
+    return res.status(200).json(structuredIntent);
+  } catch (error) {
+    console.error('Parse message error:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to parse message'
     });
   }
 });
