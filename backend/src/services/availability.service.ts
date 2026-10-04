@@ -17,7 +17,7 @@ export type AvailableSlot = {
   endIST: string;
 };
 
-function formatIST(date: Date): string {
+export function formatIST(date: Date): string {
   return new Intl.DateTimeFormat('en-IN', {
     timeZone: 'Asia/Kolkata',
     day: '2-digit',
