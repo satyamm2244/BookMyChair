@@ -17,6 +17,38 @@ export interface Booking {
   status: 'confirmed' | 'pending' | 'cancelled';
 }
 
+export interface CreateBookingPayload {
+  customerName: string;
+  phone: string;
+  serviceId: string;
+  stylistId: string;
+  start: string;
+  end: string;
+  serviceName?: string;
+  stylistName?: string;
+}
+
+export interface BookingResult {
+  success: boolean;
+  message: string;
+  booking: Booking;
+}
+
+export interface HealthCheckResult {
+  ok: boolean;
+  status?: string;
+  message?: string;
+  db?: string;
+  timestamp?: string;
+  [key: string]: unknown;
+}
+
+export interface AvailabilityResponse {
+  success: boolean;
+  slots: AvailableSlot[];
+  message?: string;
+}
+
 export type ChatResponseType =
   | 'clarification'
   | 'slots'
