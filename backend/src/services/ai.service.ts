@@ -103,14 +103,14 @@ export function parseMessageDeterministic(rawMessage: string): AiStructuredOutpu
     intent = 'availability';
   } else if (
     /\b(hello|hi|hey|namaste|hlo)\b/i.test(lower) &&
-    !/\b(haircut|facial|spa|beard|trim|cutting|baal|daadhi)\b/i.test(lower)
+    !/\b(haircut|facial|spa|beard|trim|cutting|baal|daadhi|hjaircut)\b/i.test(lower)
   ) {
     intent = 'other';
   }
 
-  // 3. Service matching & multi-service check
+  // 3. Service matching & multi-service check (with typo resilience)
   const detectedServices: string[] = [];
-  if (/\b(hair\s*cut|cutting|baal\s*kat(na|wana|wao|ye)?|haircut)\b/i.test(lower)) {
+  if (/\b(h[a-z]*rcut|hair\s*cut|cutting|baal\s*kat(na|wana|wao|ye)?|haircut)\b/i.test(lower)) {
     detectedServices.push('haircut');
   }
   if (/\b(facial|face\s*treatment)\b/i.test(lower)) {
@@ -155,9 +155,11 @@ export function parseMessageDeterministic(rawMessage: string): AiStructuredOutpu
 
   // 5. Date resolution (Asia/Kolkata runtime relative)
   let preferredDate: string | null = null;
+  const isPastDateRequested = /\b(yesterday|beeta\s+hua\s+kal|last\s+week)\b/i.test(lower);
+
   if (/\b(parso|day after tomorrow)\b/i.test(lower)) {
     preferredDate = addDaysToDate(dateString, 2);
-  } else if (/\b(kal|tomorrow)\b/i.test(lower)) {
+  } else if (/\b(kal|tomorrow|tomorow|tommorrow|tmrw)\b/i.test(lower)) {
     preferredDate = addDaysToDate(dateString, 1);
   } else if (/\b(today|aaj)\b/i.test(lower)) {
     preferredDate = dateString;
@@ -173,7 +175,7 @@ export function parseMessageDeterministic(rawMessage: string): AiStructuredOutpu
     }
   }
 
-  // 6. Time period / exact time interpretation
+  // 6. Time period / exact time interpretation (with typo resilience)
   let preferredTime: string | null = null;
   const exactTimeMatch =
     lower.match(/\b(\d{1,2}(?::\d{2})?\s*(?:am|pm))\b/i) ||
@@ -182,7 +184,7 @@ export function parseMessageDeterministic(rawMessage: string): AiStructuredOutpu
 
   if (exactTimeMatch) {
     preferredTime = exactTimeMatch[1].replace(/\s+/g, ' ').trim();
-  } else if (/\b(shaam|sham|evening|raat)\b/i.test(lower)) {
+  } else if (/\b(shaam|sham|evening|evning|eveing|evng|raat)\b/i.test(lower)) {
     preferredTime = 'evening';
   } else if (/\b(subah|morning)\b/i.test(lower)) {
     preferredTime = 'morning';
@@ -195,7 +197,12 @@ export function parseMessageDeterministic(rawMessage: string): AiStructuredOutpu
   let clarificationQuestion: string | null = null;
   let confidence = 0.95;
 
-  if (unknownStylist) {
+  if (isPastDateRequested) {
+    needsClarification = true;
+    clarificationQuestion =
+      'Appointments cannot be booked for past dates. Would you like to book for today or tomorrow?';
+    confidence = 0.9;
+  } else if (unknownStylist) {
     needsClarification = true;
     clarificationQuestion =
       'We currently have stylists Aman and Rohit available. Which stylist would you prefer?';
@@ -216,12 +223,16 @@ export function parseMessageDeterministic(rawMessage: string): AiStructuredOutpu
       ? 'Which service would you like to book for that day?'
       : 'Which service would you like to book? We offer Haircut, Facial, Hair Spa, and Beard Trim.';
     confidence = 0.8;
-  } else if (!preferredDate && !preferredTime) {
+  } else if (!preferredDate) {
     needsClarification = true;
     const servName = service.replace('_', ' ');
-    clarificationQuestion = stylistPreference
-      ? `When would you like to book your ${servName} with ${stylistPreference}?`
-      : `When would you like to book your ${servName}? (e.g. tomorrow at 5pm)`;
+    if (preferredTime) {
+      clarificationQuestion = `Which date would you like to book your ${servName} for? (e.g. today or tomorrow at ${preferredTime})`;
+    } else {
+      clarificationQuestion = stylistPreference
+        ? `When would you like to book your ${servName} with ${stylistPreference}?`
+        : `When would you like to book your ${servName}? (e.g. tomorrow at 5pm)`;
+    }
     confidence = 0.85;
   }
 
@@ -249,7 +260,7 @@ export function parseMessageDeterministic(rawMessage: string): AiStructuredOutpu
 
 /**
  * Optional LLM API integration. If an API key is present in environment,
- * attempts to query Gemini or OpenAI-compatible endpoint for structured intent.
+ * attempts to query Gemini for structured intent.
  */
 async function callLLMProvider(
   message: string,

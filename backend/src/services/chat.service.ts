@@ -269,10 +269,29 @@ export async function handleChatMessage(
     }
   });
 
-  // 2. Handle cancel or reschedule approval flows
-  if (parsedIntent.intent === 'cancel' || parsedIntent.intent === 'reschedule') {
+  // 2. Handle cancel, reschedule, discount, or outside working hours approval flows
+  const isDiscount = /\b(discount|offer|coupon|concession|20%|10%|50%)\b/i.test(message);
+  const isOutsideHours = /\b(after\s+closing|closing\s+time|outside\s+hours|band\s+hone\s+ke\s+baad)\b/i.test(message);
+
+  if (
+    parsedIntent.intent === 'cancel' ||
+    parsedIntent.intent === 'reschedule' ||
+    isDiscount ||
+    isOutsideHours
+  ) {
+    let approvalType = parsedIntent.intent;
+    let approvalMessage = 'This request needs salon owner approval.';
+
+    if (isDiscount) {
+      approvalType = 'discount' as any;
+      approvalMessage = 'Special discount requests need salon owner approval.';
+    } else if (isOutsideHours) {
+      approvalType = 'outside_hours' as any;
+      approvalMessage = 'Appointments outside working hours need salon owner approval.';
+    }
+
     await supabase.from('approvals').insert({
-      type: parsedIntent.intent,
+      type: approvalType,
       customer_id: customerId ?? null,
       status: 'pending',
       payload: {
@@ -286,7 +305,7 @@ export async function handleChatMessage(
       action: 'approval required',
       entityType: 'approval',
       metadata: {
-        intent: parsedIntent.intent,
+        intent: approvalType,
         customerId,
         message
       }
@@ -294,7 +313,7 @@ export async function handleChatMessage(
 
     return {
       type: 'approval_required',
-      message: 'This request needs salon owner approval.'
+      message: approvalMessage
     };
   }
 
@@ -317,6 +336,15 @@ export async function handleChatMessage(
     return {
       type: 'clarification',
       message: question
+    };
+  }
+
+  // Check if requested date is in the past
+  const currentIst = getCurrentISTDate();
+  if (parsedIntent.preferredDate && parsedIntent.preferredDate < currentIst.dateString) {
+    return {
+      type: 'no_availability',
+      message: 'Appointments cannot be booked for past dates. Would you like to check slots for today or tomorrow?'
     };
   }
 
