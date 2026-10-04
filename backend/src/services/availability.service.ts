@@ -1,12 +1,12 @@
 import { supabase } from '../db/supabase';
 
-type AvailabilityInput = {
+export type AvailabilityInput = {
   serviceId: string;
   date: string; // YYYY-MM-DD
   stylistId?: string;
 };
 
-type AvailableSlot = {
+export type AvailableSlot = {
   stylistId: string;
   stylistName: string;
 
