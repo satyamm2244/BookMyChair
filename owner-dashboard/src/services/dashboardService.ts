@@ -1,8 +1,10 @@
 import type {
   Appointment,
+  AppointmentStatus,
   PendingApproval,
   ActivityLogItem,
   DashboardSummary,
+  ScheduleGap,
 } from '../types/dashboard';
 
 // Mock Data
@@ -148,6 +150,33 @@ export const initialPendingApprovals: PendingApproval[] = [
   },
 ];
 
+export const initialScheduleGaps: ScheduleGap[] = [
+  {
+    id: 'gap-1',
+    date: 'today',
+    startTime: '12:00 PM',
+    endTime: '02:00 PM',
+    stylist: 'Rahul & Pooja',
+    suggestedAction: 'Send automated flash discount nudge to nearby clients',
+  },
+  {
+    id: 'gap-2',
+    date: 'today',
+    startTime: '03:00 PM',
+    endTime: '04:30 PM',
+    stylist: 'Karan',
+    suggestedAction: 'Chair open for quick beard trim or haircut walk-ins',
+  },
+  {
+    id: 'gap-3',
+    date: 'tomorrow',
+    startTime: '01:30 PM',
+    endTime: '03:30 PM',
+    stylist: 'Rahul',
+    suggestedAction: 'Candidate slot for rebooking inactive customers',
+  },
+];
+
 export const initialActivityLogs: ActivityLogItem[] = [
   {
     id: 'log-1',
@@ -194,30 +223,96 @@ export const initialActivityLogs: ActivityLogItem[] = [
 class DashboardService {
   private appointments: Appointment[] = [...initialAppointments];
   private pendingApprovals: PendingApproval[] = [...initialPendingApprovals];
+  private scheduleGaps: ScheduleGap[] = [...initialScheduleGaps];
   private activityLogs: ActivityLogItem[] = [...initialActivityLogs];
 
+  private apiUrl: string = import.meta.env.VITE_API_URL || '';
+
   async getDashboardSummary(): Promise<DashboardSummary> {
+    if (this.apiUrl) {
+      try {
+        const res = await fetch(`${this.apiUrl}/api/owner/summary`);
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Backend unavailable, falling back to mock data', e);
+      }
+    }
+
     const todayCount = this.appointments.filter((a) => a.date === 'today' && a.status !== 'cancelled').length;
     const tomorrowCount = this.appointments.filter((a) => a.date === 'tomorrow' && a.status !== 'cancelled').length;
     const pendingCount = this.pendingApprovals.filter((a) => a.status === 'pending').length;
-
-    // Schedule gaps estimate: gap slots identified between appointments
-    const scheduleGaps = 2; // e.g. 12:00-2:00 PM and 3:00-4:30 PM
+    const gapsCount = this.scheduleGaps.filter((g) => g.date === 'today').length;
 
     return {
       todayAppointments: todayCount,
       tomorrowAppointments: tomorrowCount,
       pendingApprovals: pendingCount,
-      scheduleGaps,
+      scheduleGaps: gapsCount,
     };
   }
 
   async getAppointments(date?: 'today' | 'tomorrow'): Promise<Appointment[]> {
+    if (this.apiUrl) {
+      try {
+        const query = date ? `?date=${date}` : '';
+        const res = await fetch(`${this.apiUrl}/api/owner/appointments${query}`);
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Backend unavailable, falling back to mock data', e);
+      }
+    }
+
     if (!date) return [...this.appointments];
     return this.appointments.filter((a) => a.date === date);
   }
 
+  async updateAppointmentStatus(
+    id: string,
+    newStatus: AppointmentStatus
+  ): Promise<{ success: boolean; appointment: Appointment; log: ActivityLogItem }> {
+    if (this.apiUrl) {
+      try {
+        const res = await fetch(`${this.apiUrl}/api/owner/appointments/${id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          return data;
+        }
+      } catch (e) {
+        console.warn('Backend unavailable, updating local mock state', e);
+      }
+    }
+
+    const apt = this.appointments.find((a) => a.id === id);
+    if (!apt) throw new Error(`Appointment ${id} not found`);
+
+    const oldStatus = apt.status;
+    apt.status = newStatus;
+
+    const logItem: ActivityLogItem = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      title: 'Status changed',
+      detail: `Owner updated ${apt.customerName}'s appointment (${apt.service}) from ${oldStatus} to ${newStatus}`,
+      type: 'status_changed',
+    };
+
+    this.activityLogs.unshift(logItem);
+    return { success: true, appointment: { ...apt }, log: logItem };
+  }
+
   async getPendingApprovals(): Promise<PendingApproval[]> {
+    if (this.apiUrl) {
+      try {
+        const res = await fetch(`${this.apiUrl}/api/owner/approvals`);
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Backend unavailable, falling back to mock data', e);
+      }
+    }
     return this.pendingApprovals.filter((a) => a.status === 'pending');
   }
 
@@ -226,6 +321,19 @@ class DashboardService {
     action: 'approve' | 'reject',
     comment?: string
   ): Promise<{ success: boolean; log: ActivityLogItem }> {
+    if (this.apiUrl) {
+      try {
+        const res = await fetch(`${this.apiUrl}/api/owner/approvals/${id}/resolve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, comment }),
+        });
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Backend unavailable, falling back to mock resolution', e);
+      }
+    }
+
     const item = this.pendingApprovals.find((a) => a.id === id);
     if (!item) {
       throw new Error(`Approval item ${id} not found`);
@@ -238,7 +346,7 @@ class DashboardService {
       id: `log-${Date.now()}`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       title: action === 'approve' ? 'Owner approved request' : 'Owner rejected request',
-      detail: `Owner ${actionText} ${item.type} for ${item.customerName}${comment ? ` (${comment})` : ''}`,
+      detail: `Owner ${actionText} ${item.type} for ${item.customerName}${comment ? ` • Note: "${comment}"` : ''}`,
       type: action === 'approve' ? 'owner_approved' : 'owner_rejected',
     };
 
@@ -246,7 +354,30 @@ class DashboardService {
     return { success: true, log: logItem };
   }
 
+  async getScheduleGaps(date?: 'today' | 'tomorrow'): Promise<ScheduleGap[]> {
+    if (this.apiUrl) {
+      try {
+        const query = date ? `?date=${date}` : '';
+        const res = await fetch(`${this.apiUrl}/api/owner/gaps${query}`);
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Backend unavailable, falling back to mock data', e);
+      }
+    }
+
+    if (!date) return [...this.scheduleGaps];
+    return this.scheduleGaps.filter((g) => g.date === date);
+  }
+
   async getActivityLogs(): Promise<ActivityLogItem[]> {
+    if (this.apiUrl) {
+      try {
+        const res = await fetch(`${this.apiUrl}/api/owner/activity-logs`);
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Backend unavailable, falling back to mock data', e);
+      }
+    }
     return [...this.activityLogs];
   }
 }

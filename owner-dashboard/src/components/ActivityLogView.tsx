@@ -10,6 +10,7 @@ const activityBadgeConfig: Record<ActivityType, { icon: string; label: string; b
   reminder_queued: { icon: '⏰', label: 'Reminder Queued', badgeClass: 'log-badge-reminder' },
   owner_approved: { icon: '👍', label: 'Owner Approved', badgeClass: 'log-badge-approved' },
   owner_rejected: { icon: '✕', label: 'Owner Rejected', badgeClass: 'log-badge-rejected' },
+  status_changed: { icon: '🔄', label: 'Status Changed', badgeClass: 'log-badge-status' },
 };
 
 export const ActivityLogView: React.FC<ActivityLogViewProps> = ({ logs }) => {

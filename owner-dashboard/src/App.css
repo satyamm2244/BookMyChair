@@ -364,7 +364,14 @@
   color: var(--text-secondary);
 }
 
-/* Status Badges */
+/* Status Badges & Controls */
+.appointment-status-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
 .status-badge {
   font-size: 0.75rem;
   font-weight: 600;
@@ -397,6 +404,108 @@
 .status-badge-default {
   background: var(--border-subtle);
   color: var(--text-secondary);
+}
+
+.status-selector {
+  font-size: 0.75rem;
+  font-family: inherit;
+  color: var(--text-secondary);
+  background: var(--bg-app);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.15rem 0.35rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.status-selector:hover {
+  border-color: var(--primary);
+}
+
+/* Schedule Gaps Sub-section */
+.gaps-sub-container {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px dashed var(--border-color);
+}
+
+.gaps-sub-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 0.35rem 0;
+}
+
+.gaps-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.gaps-icon {
+  font-size: 1rem;
+}
+
+.gaps-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.gaps-toggle-btn {
+  font-size: 0.75rem;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.gaps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.gap-item-card {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.gap-timing {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gap-time-range {
+  font-weight: 700;
+  font-size: 0.84rem;
+  color: #166534;
+}
+
+.gap-stylist {
+  font-size: 0.75rem;
+  color: #15803d;
+  background: #dcfce7;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+}
+
+.gap-suggestion {
+  font-size: 0.78rem;
+  color: #14532d;
+}
+
+.no-gaps-text {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 0.5rem 0;
 }
 
 /* Pending Approvals */
@@ -461,6 +570,22 @@
   line-height: 1.45;
 }
 
+.approval-note-box {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+}
+
+.approval-note-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+}
+
 .approval-footer {
   display: flex;
   justify-content: space-between;
@@ -469,10 +594,26 @@
   border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 
+.slot-reference-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .slot-reference {
   font-size: 0.78rem;
   color: var(--text-secondary);
   font-weight: 500;
+}
+
+.btn-toggle-note {
+  font-size: 0.72rem;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.btn-toggle-note:hover {
+  text-decoration: underline;
 }
 
 .approval-actions {
@@ -551,6 +692,7 @@
 .log-badge-reminder { background: #fef3c7; }
 .log-badge-approved { background: #ecfdf5; }
 .log-badge-rejected { background: #fee2e2; }
+.log-badge-status { background: #ede9fe; }
 
 .timeline-connector {
   width: 2px;
@@ -646,6 +788,9 @@
 
   .appointment-status-col {
     align-self: flex-start;
+    align-items: flex-start;
+    flex-direction: row;
+    gap: 0.5rem;
   }
 
   .approval-card-header {

@@ -36,7 +36,8 @@ export type ActivityType =
   | 'booking_confirmed'
   | 'reminder_queued'
   | 'owner_approved'
-  | 'owner_rejected';
+  | 'owner_rejected'
+  | 'status_changed';
 
 export interface ActivityLogItem {
   id: string;
@@ -44,6 +45,15 @@ export interface ActivityLogItem {
   title: string;
   detail: string;
   type: ActivityType;
+}
+
+export interface ScheduleGap {
+  id: string;
+  date: 'today' | 'tomorrow';
+  startTime: string;
+  endTime: string;
+  stylist: string;
+  suggestedAction: string;
 }
 
 export interface DashboardSummary {

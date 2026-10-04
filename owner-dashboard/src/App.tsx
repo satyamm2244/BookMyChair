@@ -7,9 +7,11 @@ import { PendingApprovals } from './components/PendingApprovals';
 import { ActivityLogView } from './components/ActivityLogView';
 import type {
   Appointment,
+  AppointmentStatus,
   PendingApproval,
   ActivityLogItem,
   DashboardSummary,
+  ScheduleGap,
 } from './types/dashboard';
 import { dashboardService } from './services/dashboardService';
 
@@ -22,6 +24,7 @@ export function App() {
   });
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [approvals, setApprovals] = useState<PendingApproval[]>([]);
+  const [gaps, setGaps] = useState<ScheduleGap[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>([]);
   const [activeDay, setActiveDay] = useState<'today' | 'tomorrow'>('today');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
@@ -31,15 +34,17 @@ export function App() {
   const loadData = async () => {
     setIsSyncing(true);
     try {
-      const [sum, apts, apprs, logs] = await Promise.all([
+      const [sum, apts, apprs, gapsData, logs] = await Promise.all([
         dashboardService.getDashboardSummary(),
         dashboardService.getAppointments(),
         dashboardService.getPendingApprovals(),
+        dashboardService.getScheduleGaps(),
         dashboardService.getActivityLogs(),
       ]);
       setSummary(sum);
       setAppointments(apts);
       setApprovals(apprs);
+      setGaps(gapsData);
       setActivityLogs(logs);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
@@ -52,17 +57,17 @@ export function App() {
     loadData();
   }, []);
 
-  const handleApprove = async (id: string) => {
+  const handleApprove = async (id: string, note?: string) => {
     setProcessingId(id);
     try {
-      const res = await dashboardService.resolveApproval(id, 'approve');
+      const res = await dashboardService.resolveApproval(id, 'approve', note);
       setApprovals((prev) => prev.filter((item) => item.id !== id));
       setActivityLogs((prev) => [res.log, ...prev]);
       setSummary((prev) => ({
         ...prev,
         pendingApprovals: Math.max(0, prev.pendingApprovals - 1),
       }));
-      showAlert('Approval recorded. AI agent informed.');
+      showAlert(`Approval confirmed.${note ? ` Note attached: "${note}"` : ''}`);
     } catch (err) {
       console.error('Approve failed:', err);
     } finally {
@@ -70,19 +75,35 @@ export function App() {
     }
   };
 
-  const handleReject = async (id: string) => {
+  const handleReject = async (id: string, note?: string) => {
     setProcessingId(id);
     try {
-      const res = await dashboardService.resolveApproval(id, 'reject');
+      const res = await dashboardService.resolveApproval(id, 'reject', note);
       setApprovals((prev) => prev.filter((item) => item.id !== id));
       setActivityLogs((prev) => [res.log, ...prev]);
       setSummary((prev) => ({
         ...prev,
         pendingApprovals: Math.max(0, prev.pendingApprovals - 1),
       }));
-      showAlert('Request rejected. AI agent informed.');
+      showAlert(`Request rejected.${note ? ` Reason: "${note}"` : ''}`);
     } catch (err) {
       console.error('Reject failed:', err);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleStatusChange = async (id: string, newStatus: AppointmentStatus) => {
+    setProcessingId(id);
+    try {
+      const res = await dashboardService.updateAppointmentStatus(id, newStatus);
+      setAppointments((prev) =>
+        prev.map((apt) => (apt.id === id ? { ...apt, status: newStatus } : apt))
+      );
+      setActivityLogs((prev) => [res.log, ...prev]);
+      showAlert(`Updated appointment status to ${newStatus.replace('_', ' ')}.`);
+    } catch (err) {
+      console.error('Status update failed:', err);
     } finally {
       setProcessingId(null);
     }
@@ -126,8 +147,11 @@ export function App() {
           <div className="column-main">
             <ScheduleView
               appointments={appointments}
+              gaps={gaps}
               activeDay={activeDay}
               onDayChange={setActiveDay}
+              onStatusChange={handleStatusChange}
+              isProcessingId={processingId}
             />
 
             <PendingApprovals

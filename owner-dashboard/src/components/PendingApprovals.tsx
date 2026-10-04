@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import type { PendingApproval, ApprovalType } from '../types/dashboard';
 
 interface PendingApprovalsProps {
   approvals: PendingApproval[];
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
+  onApprove: (id: string, note?: string) => void;
+  onReject: (id: string, note?: string) => void;
   isProcessingId?: string | null;
 }
 
@@ -21,6 +22,23 @@ export const PendingApprovals: React.FC<PendingApprovalsProps> = ({
   onReject,
   isProcessingId,
 }) => {
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+
+  const handleNoteChange = (id: string, text: string) => {
+    setNotes((prev) => ({ ...prev, [id]: text }));
+  };
+
+  const handleApproveClick = (id: string) => {
+    onApprove(id, notes[id]?.trim() || undefined);
+    setActiveNoteId(null);
+  };
+
+  const handleRejectClick = (id: string) => {
+    onReject(id, notes[id]?.trim() || undefined);
+    setActiveNoteId(null);
+  };
+
   return (
     <div className="section-card" id="pending-approvals-section">
       <div className="section-header">
@@ -50,6 +68,7 @@ export const PendingApprovals: React.FC<PendingApprovalsProps> = ({
               badgeClass: 'tag-blue',
             };
             const isBusy = isProcessingId === item.id;
+            const isNoteOpen = activeNoteId === item.id;
 
             return (
               <div key={item.id} className="approval-card">
@@ -65,13 +84,35 @@ export const PendingApprovals: React.FC<PendingApprovalsProps> = ({
 
                 <p className="approval-details">{item.details}</p>
 
+                {isNoteOpen && (
+                  <div className="approval-note-box">
+                    <input
+                      type="text"
+                      className="approval-note-input"
+                      placeholder="Optional note for AI agent / customer (e.g. Counter offer 10%)..."
+                      value={notes[item.id] || ''}
+                      onChange={(e) => handleNoteChange(item.id, e.target.value)}
+                    />
+                  </div>
+                )}
+
                 <div className="approval-footer">
-                  <span className="slot-reference">🕒 {item.time}</span>
+                  <div className="slot-reference-group">
+                    <span className="slot-reference">🕒 {item.time}</span>
+                    <button
+                      type="button"
+                      className="btn-toggle-note"
+                      onClick={() => setActiveNoteId(isNoteOpen ? null : item.id)}
+                    >
+                      {isNoteOpen ? 'Hide Note' : '💬 Add Note'}
+                    </button>
+                  </div>
+
                   <div className="approval-actions">
                     <button
                       type="button"
                       className="btn-reject"
-                      onClick={() => onReject(item.id)}
+                      onClick={() => handleRejectClick(item.id)}
                       disabled={isBusy}
                     >
                       Reject
@@ -79,7 +120,7 @@ export const PendingApprovals: React.FC<PendingApprovalsProps> = ({
                     <button
                       type="button"
                       className="btn-approve"
-                      onClick={() => onApprove(item.id)}
+                      onClick={() => handleApproveClick(item.id)}
                       disabled={isBusy}
                     >
                       Approve
