@@ -188,5 +188,5 @@ export async function getAvailableSlots(
       new Date(a.start).getTime() - new Date(b.start).getTime()
   );
 
-  return availableSlots.slice(0, 10);
+  return availableSlots;
 }
