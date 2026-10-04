@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 
 import { supabase } from './db/supabase';
 import { getAvailableSlots } from './services/availability.service';
+import { createBooking } from './services/booking.service';
 
 dotenv.config();
 
@@ -33,7 +34,7 @@ app.get('/api/health/db', async (_req: Request, res: Response) => {
       throw error;
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Database connected successfully',
       data
@@ -41,7 +42,7 @@ app.get('/api/health/db', async (_req: Request, res: Response) => {
   } catch (error) {
     console.error('Database health check failed:', error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Database connection failed'
     });
@@ -78,6 +79,65 @@ app.get('/api/test/availability', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to calculate availability'
+    });
+  }
+});
+
+app.post('/api/bookings', async (req: Request, res: Response) => {
+  try {
+    const {
+      customerName,
+      phone,
+      serviceId,
+      stylistId,
+      start,
+      end
+    } = req.body;
+
+    if (
+      !customerName ||
+      !phone ||
+      !serviceId ||
+      !stylistId ||
+      !start ||
+      !end
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required booking fields'
+      });
+    }
+
+    const booking = await createBooking({
+      customerName,
+      phone,
+      serviceId,
+      stylistId,
+      start,
+      end
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Booking confirmed',
+      booking
+    });
+  } catch (error) {
+    console.error('Booking error:', error);
+
+    if (
+      error instanceof Error &&
+      error.message === 'SLOT_UNAVAILABLE'
+    ) {
+      return res.status(409).json({
+        success: false,
+        message: 'That slot is no longer available'
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create booking'
     });
   }
 });
