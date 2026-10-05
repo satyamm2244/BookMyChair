@@ -57,11 +57,11 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
 
       <div className="summary-card card-emerald">
         <div className="card-top">
-          <span className="card-label">Schedule Gaps</span>
+          <span className="card-label">Open Slots</span>
           <span className="card-icon">⏱️</span>
         </div>
-        <div className="card-value">{summary.scheduleGaps}</div>
-        <div className="card-footnote">Open slots available for nudge</div>
+        <div className="card-value">{summary.openSlots ?? summary.scheduleGaps ?? 0}</div>
+        <div className="card-footnote">Available booking slots</div>
       </div>
     </section>
   );

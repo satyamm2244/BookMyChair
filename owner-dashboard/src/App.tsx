@@ -20,6 +20,7 @@ export function App() {
     todayAppointments: 0,
     tomorrowAppointments: 0,
     pendingApprovals: 0,
+    openSlots: 0,
     scheduleGaps: 0,
   });
   const [appointments, setAppointments] = useState<Appointment[]>([]);

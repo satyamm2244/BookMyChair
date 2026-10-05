@@ -9,6 +9,10 @@ export interface Appointment {
   stylist: string;
   status: AppointmentStatus;
   date: 'today' | 'tomorrow';
+  start?: string;
+  end?: string;
+  startIST?: string;
+  endIST?: string;
   notes?: string;
 }
 
@@ -29,6 +33,7 @@ export interface PendingApproval {
   time: string;
   createdAt: string;
   status: ApprovalStatus;
+  payload?: any;
 }
 
 export type ActivityType =
@@ -60,5 +65,7 @@ export interface DashboardSummary {
   todayAppointments: number;
   tomorrowAppointments: number;
   pendingApprovals: number;
-  scheduleGaps: number;
+  openSlots: number;
+  scheduleGaps?: number;
 }
+

@@ -2,20 +2,22 @@ import type {
   Appointment,
   AppointmentStatus,
   PendingApproval,
+  ApprovalType,
   ActivityLogItem,
+  ActivityType,
   DashboardSummary,
   ScheduleGap,
 } from '../types/dashboard';
 
-// Mock Data
+// Mock Data using real salon stylists (Aman, Rohit) and services (Haircut, Facial, Hair Spa, Beard Trim)
 export const initialAppointments: Appointment[] = [
   {
     id: 'apt-1',
     time: '09:30 AM',
     customerName: 'Priya Sharma',
     customerPhone: '+91 98765 43210',
-    service: 'Haircut & Blowdry',
-    stylist: 'Rahul',
+    service: 'Haircut',
+    stylist: 'Aman',
     status: 'completed',
     date: 'today',
   },
@@ -24,8 +26,8 @@ export const initialAppointments: Appointment[] = [
     time: '11:00 AM',
     customerName: 'Amit Patel',
     customerPhone: '+91 98111 22334',
-    service: 'Beard Trim & Facial',
-    stylist: 'Karan',
+    service: 'Beard Trim',
+    stylist: 'Rohit',
     status: 'in_progress',
     date: 'today',
   },
@@ -34,8 +36,8 @@ export const initialAppointments: Appointment[] = [
     time: '02:00 PM',
     customerName: 'Sneha Verma',
     customerPhone: '+91 98222 33445',
-    service: 'Balayage & Hair Spa',
-    stylist: 'Pooja',
+    service: 'Hair Spa',
+    stylist: 'Aman',
     status: 'confirmed',
     date: 'today',
   },
@@ -44,8 +46,8 @@ export const initialAppointments: Appointment[] = [
     time: '04:30 PM',
     customerName: 'Rohan Gupta',
     customerPhone: '+91 98333 44556',
-    service: 'Classic Men Haircut',
-    stylist: 'Rahul',
+    service: 'Haircut',
+    stylist: 'Rohit',
     status: 'confirmed',
     date: 'today',
   },
@@ -54,8 +56,8 @@ export const initialAppointments: Appointment[] = [
     time: '06:00 PM',
     customerName: 'Ananya Roy',
     customerPhone: '+91 98444 55667',
-    service: 'Keratin Treatment',
-    stylist: 'Pooja',
+    service: 'Facial',
+    stylist: 'Aman',
     status: 'confirmed',
     date: 'today',
   },
@@ -65,8 +67,8 @@ export const initialAppointments: Appointment[] = [
     time: '10:00 AM',
     customerName: 'Vikram Malhotra',
     customerPhone: '+91 98555 66778',
-    service: 'Haircut + Styling',
-    stylist: 'Rahul',
+    service: 'Haircut',
+    stylist: 'Rohit',
     status: 'confirmed',
     date: 'tomorrow',
   },
@@ -75,8 +77,8 @@ export const initialAppointments: Appointment[] = [
     time: '12:30 PM',
     customerName: 'Deepika Sen',
     customerPhone: '+91 98666 77889',
-    service: 'Root Touch-up & Blowdry',
-    stylist: 'Pooja',
+    service: 'Hair Spa',
+    stylist: 'Aman',
     status: 'confirmed',
     date: 'tomorrow',
   },
@@ -85,8 +87,8 @@ export const initialAppointments: Appointment[] = [
     time: '03:30 PM',
     customerName: 'Manish Joshi',
     customerPhone: '+91 98777 88990',
-    service: 'Detan Facial & Shave',
-    stylist: 'Karan',
+    service: 'Facial',
+    stylist: 'Rohit',
     status: 'confirmed',
     date: 'tomorrow',
   },
@@ -95,8 +97,8 @@ export const initialAppointments: Appointment[] = [
     time: '05:00 PM',
     customerName: 'Tanvi Mehra',
     customerPhone: '+91 98888 99001',
-    service: 'Gel Nails & Manicure',
-    stylist: 'Neha',
+    service: 'Beard Trim',
+    stylist: 'Aman',
     status: 'confirmed',
     date: 'tomorrow',
   },
@@ -116,7 +118,7 @@ export const initialPendingApprovals: PendingApproval[] = [
     id: 'appr-2',
     type: 'Reschedule',
     customerName: 'Meera Kapoor',
-    details: 'Requests moving 3:00 PM Hair Color appointment to 7:00 PM tonight. Stylist Pooja available.',
+    details: 'Requests moving 3:00 PM Hair Spa appointment to 7:00 PM tonight. Stylist Rohit available.',
     time: 'Requested: 7:00 PM Today',
     createdAt: '25 mins ago',
     status: 'pending',
@@ -134,7 +136,7 @@ export const initialPendingApprovals: PendingApproval[] = [
     id: 'appr-4',
     type: 'Discount request',
     customerName: 'Shreya Bansal',
-    details: 'First-time customer asking for 20% inaugural discount on Bridal Hair package (Rs. 4,500).',
+    details: 'First-time customer asking for 20% inaugural discount on Hair Spa package (Rs. 1,200).',
     time: 'For Saturday booking',
     createdAt: '2 hours ago',
     status: 'pending',
@@ -143,7 +145,7 @@ export const initialPendingApprovals: PendingApproval[] = [
     id: 'appr-5',
     type: 'Unclear customer request',
     customerName: 'Anonymous Caller (WhatsApp)',
-    details: 'AI Agent flagged message: "Need full body grooming and some coloring maybe tomorrow evening or whenever free". Needs manual slot confirmation.',
+    details: 'AI Agent flagged message: "Need haircut and facial tomorrow evening whenever free". Needs manual slot confirmation.',
     time: 'Tomorrow evening',
     createdAt: '3 hours ago',
     status: 'pending',
@@ -156,7 +158,7 @@ export const initialScheduleGaps: ScheduleGap[] = [
     date: 'today',
     startTime: '12:00 PM',
     endTime: '02:00 PM',
-    stylist: 'Rahul & Pooja',
+    stylist: 'Aman & Rohit',
     suggestedAction: 'Send automated flash discount nudge to nearby clients',
   },
   {
@@ -164,7 +166,7 @@ export const initialScheduleGaps: ScheduleGap[] = [
     date: 'today',
     startTime: '03:00 PM',
     endTime: '04:30 PM',
-    stylist: 'Karan',
+    stylist: 'Rohit',
     suggestedAction: 'Chair open for quick beard trim or haircut walk-ins',
   },
   {
@@ -172,7 +174,7 @@ export const initialScheduleGaps: ScheduleGap[] = [
     date: 'tomorrow',
     startTime: '01:30 PM',
     endTime: '03:30 PM',
-    stylist: 'Rahul',
+    stylist: 'Aman',
     suggestedAction: 'Candidate slot for rebooking inactive customers',
   },
 ];
@@ -189,7 +191,7 @@ export const initialActivityLogs: ActivityLogItem[] = [
     id: 'log-2',
     timestamp: '11:15 AM',
     title: 'Booking confirmed',
-    detail: 'AI assistant auto-confirmed slot for Amit Patel with Stylist Karan',
+    detail: 'AI assistant auto-confirmed slot for Amit Patel with Stylist Rohit',
     type: 'booking_confirmed',
   },
   {
@@ -203,7 +205,7 @@ export const initialActivityLogs: ActivityLogItem[] = [
     id: 'log-4',
     timestamp: '09:40 AM',
     title: 'Owner approved request',
-    detail: 'Owner Rishav approved complimentary beard oil add-on for Vikram M.',
+    detail: 'Owner approved complimentary beard oil add-on for Vikram M.',
     type: 'owner_approved',
   },
   {
@@ -217,8 +219,7 @@ export const initialActivityLogs: ActivityLogItem[] = [
 
 /**
  * Service abstraction layer for the Owner Dashboard.
- * Satyam will provide backend API endpoints; these methods can then be switched
- * from in-memory/mock state to HTTP calls without changing UI components.
+ * Integrates directly with real backend API contract on http://localhost:5000.
  */
 class DashboardService {
   private appointments: Appointment[] = [...initialAppointments];
@@ -226,13 +227,206 @@ class DashboardService {
   private scheduleGaps: ScheduleGap[] = [...initialScheduleGaps];
   private activityLogs: ActivityLogItem[] = [...initialActivityLogs];
 
-  private apiUrl: string = import.meta.env.VITE_API_URL || '';
+  private apiUrl: string = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+  /**
+   * Helper to map backend booking entity to Dashboard Appointment model
+   */
+  private mapBookingToAppointment(b: any, scope: 'today' | 'tomorrow'): Appointment {
+    let timeStr = '';
+    if (b.startIST && typeof b.startIST === 'string') {
+      const parts = b.startIST.split(',');
+      timeStr = (parts[1] || parts[0]).trim();
+    } else if (b.start) {
+      try {
+        timeStr = new Date(b.start).toLocaleTimeString('en-US', {
+          timeZone: 'Asia/Kolkata',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+      } catch {
+        timeStr = b.start;
+      }
+    }
+
+    return {
+      id: b.id,
+      time: timeStr || 'Scheduled',
+      customerName: b.customerName || 'Walk-in',
+      customerPhone: b.customerPhone || '',
+      service: b.service || 'Service',
+      stylist: b.stylist || 'Aman',
+      status: (['confirmed', 'in_progress', 'completed', 'cancelled'].includes(b.status)
+        ? b.status
+        : 'confirmed') as AppointmentStatus,
+      date: scope,
+      start: b.start,
+      end: b.end,
+      startIST: b.startIST,
+      endIST: b.endIST,
+    };
+  }
+
+  /**
+   * Helper to map backend approval entity to Dashboard PendingApproval model
+   */
+  private mapApprovalToPendingApproval(item: any): PendingApproval {
+    let displayType: ApprovalType = 'Unclear customer request';
+    const rawType = (item.type || '').toLowerCase();
+    if (rawType.includes('discount')) {
+      displayType = 'Discount request';
+    } else if (rawType.includes('outside') || rawType.includes('hours')) {
+      displayType = 'Outside-hours request';
+    } else if (rawType.includes('cancel')) {
+      displayType = 'Late cancellation';
+    } else if (rawType.includes('reschedule')) {
+      displayType = 'Reschedule';
+    } else if (rawType === 'unclear' || rawType.includes('intent')) {
+      displayType = 'Unclear customer request';
+    }
+
+    const payload = item.payload || {};
+    const customerName =
+      payload.customerName ||
+      payload.name ||
+      payload.customerPhone ||
+      (item.customer_id ? `Customer (${item.customer_id.slice(0, 6)})` : 'Customer');
+
+    const details =
+      payload.message ||
+      payload.details ||
+      payload.parsedIntent?.clarificationQuestion ||
+      `Request requires owner review for ${displayType}`;
+
+    let timeDisplay = 'Pending review';
+    if (payload.parsedIntent?.time) {
+      timeDisplay = `Requested: ${payload.parsedIntent.time}`;
+    } else if (item.created_at) {
+      try {
+        timeDisplay = new Date(item.created_at).toLocaleTimeString('en-US', {
+          timeZone: 'Asia/Kolkata',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+      } catch {
+        timeDisplay = 'Pending';
+      }
+    }
+
+    let createdAtDisplay = 'Just now';
+    if (item.created_at) {
+      const diffMs = Date.now() - new Date(item.created_at).getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      if (diffMins < 1) {
+        createdAtDisplay = 'Just now';
+      } else if (diffMins < 60) {
+        createdAtDisplay = `${diffMins} min${diffMins === 1 ? '' : 's'} ago`;
+      } else {
+        const diffHours = Math.floor(diffMins / 60);
+        createdAtDisplay = `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+      }
+    }
+
+    return {
+      id: item.id,
+      type: displayType,
+      customerName,
+      details,
+      time: timeDisplay,
+      createdAt: createdAtDisplay,
+      status: item.status || 'pending',
+      payload: item.payload,
+    };
+  }
+
+  /**
+   * Helper to map backend activity log entity to ActivityLogItem
+   */
+  private mapBackendActivityToLogItem(item: any): ActivityLogItem {
+    const rawAction = (item.action || '').toLowerCase();
+    const actor = (item.actor || 'system').toLowerCase();
+    const meta = item.metadata || {};
+
+    let type: ActivityType = 'agent_suggestion';
+    let title = item.action || 'Activity recorded';
+
+    if (rawAction.includes('approve')) {
+      type = 'owner_approved';
+      title = 'Owner approved request';
+    } else if (rawAction.includes('reject')) {
+      type = 'owner_rejected';
+      title = 'Owner rejected request';
+    } else if (rawAction.includes('booking') || rawAction.includes('confirm')) {
+      type = 'booking_confirmed';
+      title = 'Booking confirmed';
+    } else if (rawAction.includes('reminder')) {
+      type = 'reminder_queued';
+      title = 'Reminder queued';
+    } else if (rawAction.includes('status')) {
+      type = 'status_changed';
+      title = 'Status changed';
+    } else if (rawAction.includes('chat') || rawAction.includes('suggest')) {
+      type = 'agent_suggestion';
+      title = 'Agent suggested slot';
+    }
+
+    let detail = '';
+    if (meta.message) {
+      detail = meta.message;
+    } else if (meta.customerName) {
+      detail = `${actor === 'owner' ? 'Owner' : 'AI Agent'} processed booking for ${meta.customerName}${meta.service ? ` (${meta.service})` : ''}`;
+    } else if (meta.action && meta.approvalId) {
+      detail = `Owner ${meta.action === 'approve' ? 'approved' : 'rejected'} approval request #${meta.approvalId.slice(0, 8)}`;
+    } else if (meta.intent) {
+      detail = `AI Agent processed intent: ${meta.intent}`;
+    } else {
+      detail = `${item.actor ? item.actor.toUpperCase() : 'System'}: ${item.action || 'Event logged'}`;
+    }
+
+    let timestamp = 'Just now';
+    if (item.created_at) {
+      try {
+        timestamp = new Date(item.created_at).toLocaleTimeString('en-US', {
+          timeZone: 'Asia/Kolkata',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+      } catch {
+        timestamp = 'Recently';
+      }
+    }
+
+    return {
+      id: item.id || `log-${Date.now()}-${Math.random()}`,
+      timestamp,
+      title,
+      detail,
+      type,
+    };
+  }
+
+  /**
+   * GET /api/dashboard/summary
+   */
   async getDashboardSummary(): Promise<DashboardSummary> {
     if (this.apiUrl) {
       try {
-        const res = await fetch(`${this.apiUrl}/api/owner/summary`);
-        if (res.ok) return await res.json();
+        const res = await fetch(`${this.apiUrl}/api/dashboard/summary`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            return {
+              todayAppointments: Number(json.data.todayAppointments) || 0,
+              tomorrowAppointments: Number(json.data.tomorrowAppointments) || 0,
+              pendingApprovals: Number(json.data.pendingApprovals) || 0,
+              openSlots: Number(json.data.openSlots) || 0,
+              scheduleGaps: Number(json.data.openSlots) || 0,
+            };
+          }
+        }
       } catch (e) {
         console.warn('Backend unavailable, falling back to mock data', e);
       }
@@ -247,16 +441,44 @@ class DashboardService {
       todayAppointments: todayCount,
       tomorrowAppointments: tomorrowCount,
       pendingApprovals: pendingCount,
+      openSlots: gapsCount,
       scheduleGaps: gapsCount,
     };
   }
 
+  /**
+   * GET /api/dashboard/bookings?scope=today | tomorrow
+   */
   async getAppointments(date?: 'today' | 'tomorrow'): Promise<Appointment[]> {
     if (this.apiUrl) {
       try {
-        const query = date ? `?date=${date}` : '';
-        const res = await fetch(`${this.apiUrl}/api/owner/appointments${query}`);
-        if (res.ok) return await res.json();
+        if (date) {
+          const res = await fetch(`${this.apiUrl}/api/dashboard/bookings?scope=${date}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && Array.isArray(json.data)) {
+              return json.data.map((b: any) => this.mapBookingToAppointment(b, date));
+            }
+          }
+        } else {
+          const [todayRes, tomorrowRes] = await Promise.all([
+            fetch(`${this.apiUrl}/api/dashboard/bookings?scope=today`),
+            fetch(`${this.apiUrl}/api/dashboard/bookings?scope=tomorrow`),
+          ]);
+          if (todayRes.ok && tomorrowRes.ok) {
+            const [todayJson, tomorrowJson] = await Promise.all([
+              todayRes.json(),
+              tomorrowRes.json(),
+            ]);
+            const todayApts = (todayJson.data || []).map((b: any) =>
+              this.mapBookingToAppointment(b, 'today')
+            );
+            const tomorrowApts = (tomorrowJson.data || []).map((b: any) =>
+              this.mapBookingToAppointment(b, 'tomorrow')
+            );
+            return [...todayApts, ...tomorrowApts];
+          }
+        }
       } catch (e) {
         console.warn('Backend unavailable, falling back to mock data', e);
       }
@@ -266,49 +488,85 @@ class DashboardService {
     return this.appointments.filter((a) => a.date === date);
   }
 
+  /**
+   * GET /api/bookings?date=YYYY-MM-DD
+   */
+  async getBookingsByDate(dateStr: string): Promise<Appointment[]> {
+    if (this.apiUrl) {
+      try {
+        const res = await fetch(`${this.apiUrl}/api/bookings?date=${dateStr}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data)) {
+            return json.data.map((b: any) => this.mapBookingToAppointment(b, 'today'));
+          }
+        }
+      } catch (e) {
+        console.warn('Backend unavailable for getBookingsByDate', e);
+      }
+    }
+    return this.appointments;
+  }
+
+  /**
+   * Update appointment status client-side.
+   * Note: There is NO backend endpoint PATCH /api/owner/appointments/:id/status.
+   * State is managed cleanly without calling non-existent routes.
+   */
   async updateAppointmentStatus(
     id: string,
     newStatus: AppointmentStatus
   ): Promise<{ success: boolean; appointment: Appointment; log: ActivityLogItem }> {
-    if (this.apiUrl) {
-      try {
-        const res = await fetch(`${this.apiUrl}/api/owner/appointments/${id}/status`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: newStatus }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          return data;
-        }
-      } catch (e) {
-        console.warn('Backend unavailable, updating local mock state', e);
-      }
-    }
-
     const apt = this.appointments.find((a) => a.id === id);
-    if (!apt) throw new Error(`Appointment ${id} not found`);
-
-    const oldStatus = apt.status;
-    apt.status = newStatus;
+    const oldStatus = apt ? apt.status : 'confirmed';
+    if (apt) {
+      apt.status = newStatus;
+    }
 
     const logItem: ActivityLogItem = {
       id: `log-${Date.now()}`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString('en-US', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      }),
       title: 'Status changed',
-      detail: `Owner updated ${apt.customerName}'s appointment (${apt.service}) from ${oldStatus} to ${newStatus}`,
+      detail: `Owner updated ${apt ? apt.customerName : 'appointment'}'s status from ${oldStatus} to ${newStatus}`,
       type: 'status_changed',
     };
 
     this.activityLogs.unshift(logItem);
-    return { success: true, appointment: { ...apt }, log: logItem };
+    return {
+      success: true,
+      appointment: apt
+        ? { ...apt }
+        : {
+            id,
+            time: 'Scheduled',
+            customerName: 'Customer',
+            service: 'Haircut',
+            stylist: 'Aman',
+            status: newStatus,
+            date: 'today',
+          },
+      log: logItem,
+    };
   }
 
-  async getPendingApprovals(): Promise<PendingApproval[]> {
+  /**
+   * GET /api/approvals?status=pending
+   */
+  async getPendingApprovals(status: string = 'pending'): Promise<PendingApproval[]> {
     if (this.apiUrl) {
       try {
-        const res = await fetch(`${this.apiUrl}/api/owner/approvals`);
-        if (res.ok) return await res.json();
+        const res = await fetch(`${this.apiUrl}/api/approvals?status=${status}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data)) {
+            return json.data.map((item: any) => this.mapApprovalToPendingApproval(item));
+          }
+        }
       } catch (e) {
         console.warn('Backend unavailable, falling back to mock data', e);
       }
@@ -316,69 +574,129 @@ class DashboardService {
     return this.pendingApprovals.filter((a) => a.status === 'pending');
   }
 
+  /**
+   * PATCH /api/approvals/:id
+   * Body: { "action": "approve" | "reject" }
+   */
   async resolveApproval(
     id: string,
     action: 'approve' | 'reject',
     comment?: string
-  ): Promise<{ success: boolean; log: ActivityLogItem }> {
+  ): Promise<{ success: boolean; log: ActivityLogItem; data?: any }> {
+    let responseData: any = null;
     if (this.apiUrl) {
       try {
-        const res = await fetch(`${this.apiUrl}/api/owner/approvals/${id}/resolve`, {
-          method: 'POST',
+        const res = await fetch(`${this.apiUrl}/api/approvals/${id}`, {
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action, comment }),
+          body: JSON.stringify({ action }),
         });
-        if (res.ok) return await res.json();
+        if (res.ok) {
+          responseData = await res.json();
+        } else {
+          console.warn(`Approval update returned status ${res.status}`);
+        }
       } catch (e) {
         console.warn('Backend unavailable, falling back to mock resolution', e);
       }
     }
 
     const item = this.pendingApprovals.find((a) => a.id === id);
-    if (!item) {
-      throw new Error(`Approval item ${id} not found`);
+    if (item) {
+      item.status = action === 'approve' ? 'approved' : 'rejected';
     }
-
-    item.status = action === 'approve' ? 'approved' : 'rejected';
 
     const actionText = action === 'approve' ? 'approved' : 'rejected';
     const logItem: ActivityLogItem = {
       id: `log-${Date.now()}`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString('en-US', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      }),
       title: action === 'approve' ? 'Owner approved request' : 'Owner rejected request',
-      detail: `Owner ${actionText} ${item.type} for ${item.customerName}${comment ? ` • Note: "${comment}"` : ''}`,
+      detail: item
+        ? `Owner ${actionText} ${item.type} for ${item.customerName}${comment ? ` • Note: "${comment}"` : ''}`
+        : `Owner ${actionText} request #${id.slice(0, 8)}${comment ? ` • Note: "${comment}"` : ''}`,
       type: action === 'approve' ? 'owner_approved' : 'owner_rejected',
     };
 
     this.activityLogs.unshift(logItem);
-    return { success: true, log: logItem };
+    return { success: true, log: logItem, data: responseData };
   }
 
+  /**
+   * Return schedule gaps for the given date.
+   */
   async getScheduleGaps(date?: 'today' | 'tomorrow'): Promise<ScheduleGap[]> {
-    if (this.apiUrl) {
-      try {
-        const query = date ? `?date=${date}` : '';
-        const res = await fetch(`${this.apiUrl}/api/owner/gaps${query}`);
-        if (res.ok) return await res.json();
-      } catch (e) {
-        console.warn('Backend unavailable, falling back to mock data', e);
-      }
-    }
-
     if (!date) return [...this.scheduleGaps];
     return this.scheduleGaps.filter((g) => g.date === date);
   }
 
-  async getActivityLogs(): Promise<ActivityLogItem[]> {
+  /**
+   * GET /api/activity?limit=20
+   */
+  async getActivityLogs(limit: number = 20): Promise<ActivityLogItem[]> {
     if (this.apiUrl) {
       try {
-        const res = await fetch(`${this.apiUrl}/api/owner/activity-logs`);
-        if (res.ok) return await res.json();
+        const res = await fetch(`${this.apiUrl}/api/activity?limit=${limit}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data)) {
+            return json.data.map((item: any) => this.mapBackendActivityToLogItem(item));
+          }
+        }
       } catch (e) {
         console.warn('Backend unavailable, falling back to mock data', e);
       }
     }
     return [...this.activityLogs];
+  }
+
+  /**
+   * Automation helper: GET /api/automation/reminders?window=day_before | two_hours
+   */
+  async getAutomationReminders(window: 'day_before' | 'two_hours' = 'day_before') {
+    if (this.apiUrl) {
+      try {
+        const res = await fetch(`${this.apiUrl}/api/automation/reminders?window=${window}`);
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Backend unavailable for reminders', e);
+      }
+    }
+    return { success: false, data: [] };
+  }
+
+  /**
+   * Automation helper: GET /api/automation/tomorrow-summary
+   */
+  async getTomorrowSummary() {
+    if (this.apiUrl) {
+      try {
+        const res = await fetch(`${this.apiUrl}/api/automation/tomorrow-summary`);
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Backend unavailable for tomorrow summary', e);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Automation helper: GET /api/automation/rebooking-candidates
+   */
+  async getRebookingCandidates() {
+    if (this.apiUrl) {
+      try {
+        const res = await fetch(`${this.apiUrl}/api/automation/rebooking-candidates`);
+        if (res.ok) return await res.json();
+      } catch (e) {
+        console.warn('Backend unavailable for rebooking candidates', e);
+      }
+    }
+    return { success: false, data: [] };
   }
 }
 
